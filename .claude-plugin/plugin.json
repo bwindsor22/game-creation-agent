@@ -1,0 +1,11 @@
+{
+  "name": "game-creation-agent",
+  "version": "1.0.0",
+  "description": "Tools for converting board game rulebooks into playable web implementations. Provides PDF extraction, headless screenshot, HTML5 drag-and-drop testing, and Claude vision analysis.",
+  "mcpServers": {
+    "game-creation": {
+      "command": "python3",
+      "args": ["${pluginDir}/mcp_server.py"]
+    }
+  }
+}
