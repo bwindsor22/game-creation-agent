@@ -18,6 +18,16 @@ import subprocess
 
 # ── Import local_coder as the base ───────────────────────────────────────────
 LOCAL_CODER_DIR = "/Users/brad/projects/code/local-coder"
+
+# Build subprocess env: inherit everything, add ANTHROPIC_API_KEY if not already set.
+# Claude Code stores the key internally; if the user has it in their shell, use it.
+_SUBPROCESS_ENV = {**os.environ}
+if "ANTHROPIC_API_KEY" not in _SUBPROCESS_ENV:
+    # Try reading from ~/.anthropic/api_key (common location)
+    _key_file = os.path.expanduser("~/.anthropic/api_key")
+    if os.path.exists(_key_file):
+        with open(_key_file) as _f:
+            _SUBPROCESS_ENV["ANTHROPIC_API_KEY"] = _f.read().strip()
 TOOLS_DIR = os.path.dirname(os.path.abspath(__file__)) + "/tools"
 sys.path.insert(0, LOCAL_CODER_DIR)
 
@@ -25,24 +35,6 @@ import local_coder  # noqa: E402  (must come after sys.path insert)
 
 
 # ── Game-specific tool implementations ───────────────────────────────────────
-
-def tool_read_pdf(args: dict) -> str:
-    """Extract text from a PDF rulebook. pages: '1-5' or '3' (optional)."""
-    path = args.get("path")
-    pages = args.get("pages")
-    if not path:
-        return "ERROR: path required"
-    script = (
-        f"import sys; sys.path.insert(0, {repr(TOOLS_DIR)}); "
-        f"from pdf_tool import pdf_to_text; "
-        f"print(pdf_to_text({repr(path)}, pages={repr(pages)})[:8000])"
-    )
-    result = subprocess.run(["/usr/bin/python3", "-c", script],
-                            capture_output=True, text=True, timeout=30)
-    if result.returncode != 0:
-        return f"read_pdf error: {result.stderr[:400]}"
-    return result.stdout.strip()
-
 
 def tool_dev_server(args: dict) -> str:
     """Start or stop a React dev server. action: 'start'|'stop', path, port."""
@@ -64,7 +56,7 @@ def tool_dev_server(args: dict) -> str:
             f"print('Dev server started at http://localhost:{port} pid=' + str(r.get('pid','?')))"
         )
     result = subprocess.run(["/usr/bin/python3", "-c", "".join(script_parts)],
-                            capture_output=True, text=True, timeout=30)
+                            capture_output=True, text=True, timeout=30, env=_SUBPROCESS_ENV)
     if result.returncode != 0:
         return f"dev_server error: {result.stderr[:400]}"
     return result.stdout.strip()
@@ -82,7 +74,7 @@ def tool_screenshot(args: dict) -> str:
         f"output_path={repr(output_path)}); print(p)"
     )
     result = subprocess.run(["/usr/bin/python3", "-c", script],
-                            capture_output=True, text=True, timeout=60)
+                            capture_output=True, text=True, timeout=60, env=_SUBPROCESS_ENV)
     if result.returncode != 0:
         return f"screenshot error: {result.stderr[:400]}"
     return f"Screenshot saved to {result.stdout.strip()}"
@@ -100,7 +92,7 @@ def tool_ask_vision(args: dict) -> str:
         f"print(ask_about_screenshot({repr(image_path)}, {repr(question)}))"
     )
     result = subprocess.run(["/usr/bin/python3", "-c", script],
-                            capture_output=True, text=True, timeout=120)
+                            capture_output=True, text=True, timeout=120, env=_SUBPROCESS_ENV)
     if result.returncode != 0:
         return f"ask_vision error: {result.stderr[:400]}"
     return result.stdout.strip()
@@ -108,29 +100,29 @@ def tool_ask_vision(args: dict) -> str:
 
 # ── Register game tools into local_coder's TOOLS dict ────────────────────────
 GAME_TOOLS = {
-    "read_pdf":   tool_read_pdf,
     "dev_server": tool_dev_server,
     "screenshot": tool_screenshot,
     "ask_vision": tool_ask_vision,
 }
 local_coder.TOOLS.update(GAME_TOOLS)
 
-# Extend the tool schema with game-specific entries
+# Extend the tool schema with game-specific entries (git and read_pdf already in local_coder)
 local_coder.TOOL_SCHEMA = local_coder.TOOL_SCHEMA.replace(
-    "- git(subcommand, cwd?, args?)              — run git status/diff/log/add/commit",
-    "- git(subcommand, cwd?, args?)              — run git status/diff/log/add/commit\n"
+    "- read_pdf(path, pages?)                    — extract text from a PDF rulebook",
     "- read_pdf(path, pages?)                    — extract text from a PDF rulebook\n"
     "- dev_server(action, path?, port?)          — start or stop a React dev server\n"
     "- screenshot(url?, output_path?, selector?) — screenshot a running web app; returns path\n"
-    "- ask_vision(image_path, question)          — analyze screenshot with Claude vision",
+    "- ask_vision(image_path, question)          — analyze screenshot with Ollama vision model",
 )
 
 # Add game-specific rules
 local_coder.TOOL_SCHEMA = local_coder.TOOL_SCHEMA.replace(
-    "10. Use remember() to save important discoveries",
-    "10. Use remember() to save important discoveries\n"
-    "11. To verify React UI changes: dev_server(start) → screenshot(url) → ask_vision(image, question). Stop dev_server when done.\n"
-    "12. Read game rulebook PDFs with read_pdf before implementing rules.",
+    "14. Tackle one concrete deliverable at a time.",
+    "14. Tackle one concrete deliverable at a time.\n"
+    "15. Every React component prop in the function signature MUST be used in JSX. After writing, re-read to confirm.\n"
+    "16. When building a game: create the game state module FIRST (pure JS, no React), get build passing, then update components to consume it.\n"
+    "17. After npm_build passes with React changes, start dev_server → screenshot → ask_vision to confirm the UI renders correctly. Stop dev_server after.\n"
+    "18. Read game rulebook PDFs with read_pdf before implementing rules.",
 )
 
 
