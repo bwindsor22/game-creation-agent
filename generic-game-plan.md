@@ -59,6 +59,18 @@ Implement in this sub-order, confirming each works before the next:
 5. **Win / loss / draw conditions** — detect end of game and display result
 6. **Score tracking** — if the game has scoring, show live totals
 
+### Common patterns (apply when the rulebook requires them)
+
+**Setup phase** — Many Euro games have distinct setup rules before normal play begins (e.g. "place 2 starting pieces on the outer ring only"). Model this as a separate flag (`setupComplete: bool`). During setup, `canMove` enforces setup-specific restrictions; once setup is done, normal rules apply. Track progress with a counter (`setupPiecesPlaced`) compared to a constant (`SETUP_PIECES_NEEDED`).
+
+**Activated spaces per turn** — When the rulebook says "you may not act on the same space twice in one turn" (common in Euro games for planting/growing/harvesting), track a `Set` of activated coordinates. Add to it on every board action; clear it when the turn advances. Check it at the start of every `canMove` call for board targets.
+
+**Newly placed pieces are inert** — Pieces placed this turn should not count as sources for further actions in the same turn. Since newly placed pieces are already in `activatedSquares`, excluding activated squares from any "find a nearby source" check implements this rule automatically.
+
+**Diminishing score piles** — Many Euro games award more points for early harvests from central locations. Model as an array of piles indexed by board zone (e.g. ring 0 = center = most valuable). Each harvest `shift()`s the top token from the matching pile, falling back to the next (less valuable) pile if that pile is empty. Initialize piles from a constant and keep them in module-level state alongside the board.
+
+**"N rounds" end condition with bonus scoring** — When the game ends after a fixed number of rounds, compute the final score as `scoringTokens + floor(resources / divisor)`. Track revolutions/rounds as a counter incremented when the sun/phase marker wraps. Set `isGameOver = true` when the counter reaches the limit; disable the advance-turn button; display the score breakdown prominently.
+
 Drag-and-drop is the primary interaction for placing/moving pieces. Use `simulate_drag` to test key interactions after implementation.
 
 **Review checkpoint:** Screenshot mid-game with a few moves made. Confirm pieces move correctly and illegal moves are blocked.

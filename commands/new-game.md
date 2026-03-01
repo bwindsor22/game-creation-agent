@@ -46,7 +46,7 @@ Present the game-specific plan clearly. Ask: "Does this plan look correct before
 For each phase (1 through 7):
 
 1. Implement the phase in `project_dir`
-2. Call `build_project(project_dir)` — fix any build errors before continuing
+2. Call `npm_build(project_dir)` from `tools/npm_build.py` — fix any build errors before continuing
 3. Call `start_dev_server(project_dir)`
 4. Call `take_screenshot('http://localhost:3000', output_path='/tmp/phase-N.png')`
 5. Call `ask_about_screenshot('/tmp/phase-N.png', <phase-specific question>)` to verify the implementation looks correct

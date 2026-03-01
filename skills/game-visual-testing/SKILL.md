@@ -59,6 +59,17 @@ When a price badge overlaps a piece token in the store:
 
 If piece images have square/rectangular transparent corners that obscure other elements, add `border-radius: 50%` to the `<img>` style. This clips the corners without requiring image editing.
 
+## Turn-rule interaction testing
+
+When the game has per-turn activation restrictions (no acting on the same space twice; newly placed pieces can't be used as sources), verify them explicitly — they are easy to miss in a static screenshot.
+
+Test sequence for "place then immediately use" bug:
+1. `simulate_drag` a piece onto an empty board square (e.g. plant a tree)
+2. `simulate_drag` a seed from available to a square that would only be in range via the just-planted tree
+3. Check `console_errors` and take an after screenshot — the drop should be **rejected** (piece returns to origin, board state unchanged)
+
+If the second drop is accepted, the rule is not being enforced. Fix: ensure the seed-range check excludes squares in `activatedSquaresThisTurn`.
+
 ## Reference image comparison
 
 Store reference images in `project_dir/resources/`. When verifying layout changes, always compare against them. Ask: "How does this screenshot compare to [reference]? List specific differences in layout, shapes, colors, and positioning."
