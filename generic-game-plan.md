@@ -71,6 +71,8 @@ Implement in this sub-order, confirming each works before the next:
 
 **"N rounds" end condition with bonus scoring** — When the game ends after a fixed number of rounds, compute the final score as `scoringTokens + floor(resources / divisor)`. Track revolutions/rounds as a counter incremented when the sun/phase marker wraps. Set `isGameOver = true` when the counter reaches the limit; disable the advance-turn button; display the score breakdown prominently.
 
+**Free setup placement** — Many games have free initial placement (no resource cost). In `canMovePiece`, check the setup condition BEFORE the resource/LP cost check so that 0-LP players can still place their starting pieces. In `movePiece`, gate any cost deduction on `setupDone`: `const cost = setupDone ? movementCosts[type] : 0`. Same pattern in `getDropHint` — skip the "need N LP" error during setup so players see valid drop targets.
+
 Drag-and-drop is the primary interaction for placing/moving pieces. Use `simulate_drag` to test key interactions after implementation.
 
 **Review checkpoint:** Screenshot mid-game with a few moves made. Confirm pieces move correctly and illegal moves are blocked.
@@ -119,12 +121,28 @@ Drag-and-drop is the primary interaction for placing/moving pieces. Use `simulat
 
 **Goal:** The player can choose to play against a computer opponent.
 
-- Implement minimax with alpha-beta pruning
-- Define a heuristic evaluation function for non-terminal states (derived from the rulebook's scoring/advantage criteria)
-- AI difficulty: start with depth 3; make depth configurable if performance allows
-- AI takes its turn automatically after the human player's move
-- Show a brief "thinking…" indicator while AI computes
+- Place AI code in `src/AI/ai.js` (NOT inside `src/view/`) — keeps AI separate from rendering
+- Use greedy search with lookahead depth (depth 1 = greedy, depth 2–3 = lookahead) rather than full minimax; this is faster and sufficient for most Euro games
+- Expose `easy` / `medium` / `hard` difficulty levels; map to depths 1/2/3 or top-N random vs. best
+- Define a heuristic evaluation function using: score delta, resource delta, board position weights (central squares > edge)
+- Use a pure functional `applyMove(state, move)` that snapshots state without mutating module state — essential for lookahead
+- AI takes its turn automatically after the human player ends their turn, with a brief `setTimeout` delay for visual feedback
+- Show a "thinking…" indicator in the UI; disable all drag targets while AI is computing
 - AI plays one side only; human always goes first unless the rules specify otherwise
+- Track LP / scores via `useRef` to avoid stale closures in async AI callbacks
+- The setup useEffect (AI places starting pieces) must depend on `p1SetupDone` state, not `isSetupComplete` — `isSetupComplete` is only true when BOTH players have placed, so it never fires the AI trigger in time
+
+**Startup screen pattern:**
+- Show a startup screen (separate component) before the game mounts the `GameProvider`
+- Startup screen collects: player color, number of AI opponents, difficulty
+- Pass selections as props to `GameProvider` (e.g. `initialColor`, `initialDifficulty`)
+- Player color: apply a CSS `filter` (hue-rotate) to piece images; export a `COLOR_FILTERS` map from GameContext for consistency across components
+- Lock difficulty selector after setup completes (can't change mid-game)
+
+**Initial photosynthesis:**
+- Run photosynthesis at sun position 0 AFTER setup completes (not before)
+- This gives players their first LP from their starting trees, per the rulebook
+- Trigger it inside the AI setup useEffect, after AI places its trees
 
 **Review checkpoint:** Play several moves against the AI. Confirm it makes legal moves and provides reasonable (not obviously losing) play.
 

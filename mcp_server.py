@@ -11,7 +11,8 @@ from mcp.types import Tool, TextContent
 from tools.pdf_tool import pdf_to_text
 from tools.screenshot_tool import take_screenshot, simulate_drag
 from tools.vision_tool import ask_about_screenshot
-from tools.dev_tools import build_project, start_dev_server, kill_dev_server
+from tools.npm_build import npm_build
+from tools.dev_tools import start_dev_server, kill_dev_server
 
 app = Server("game-creation")
 
@@ -91,9 +92,18 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
-            name="build_trees_game",
-            description="Run `npm run build` in the trees-game project. Returns build output and success status.",
-            inputSchema={"type": "object", "properties": {}},
+            name="npm_build",
+            description="Run `npm run build` in any npm project directory. Returns stdout, stderr, and success flag.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "project_dir": {
+                        "type": "string",
+                        "description": "Absolute path to the npm project root.",
+                    },
+                },
+                "required": ["project_dir"],
+            },
         ),
         Tool(
             name="start_dev_server",
@@ -161,9 +171,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         )
         return [TextContent(type="text", text=_json.dumps(result, indent=2))]
 
-    if name == "build_trees_game":
+    if name == "npm_build":
         import json as _json
-        result = build_project(arguments["project_dir"])
+        result = npm_build(arguments["project_dir"])
         return [TextContent(type="text", text=_json.dumps(result, indent=2))]
 
     if name == "start_dev_server":
