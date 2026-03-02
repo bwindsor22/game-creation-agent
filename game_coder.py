@@ -80,6 +80,24 @@ def tool_screenshot(args: dict) -> str:
     return f"Screenshot saved to {result.stdout.strip()}"
 
 
+def tool_reset_project(args: dict) -> str:
+    """Reset a project to a clean scaffold from a template. Wipes src/ and rebuilds stubs."""
+    target = args.get("target_dir")
+    template = args.get("template_dir")
+    if not target or not template:
+        return "ERROR: target_dir and template_dir required"
+    script = (
+        f"import sys; sys.path.insert(0, {repr(TOOLS_DIR)}); "
+        f"from reset_project import reset_project; "
+        f"print(reset_project({repr(target)}, {repr(template)}))"
+    )
+    result = subprocess.run(["/usr/bin/python3", "-c", script],
+                            capture_output=True, text=True, timeout=60)
+    if result.returncode != 0:
+        return f"reset_project error: {result.stderr[:400]}"
+    return result.stdout.strip()
+
+
 def tool_ask_vision(args: dict) -> str:
     """Ask Claude vision to analyze a screenshot. Returns text answer."""
     image_path = args.get("image_path")
@@ -100,9 +118,10 @@ def tool_ask_vision(args: dict) -> str:
 
 # ── Register game tools into local_coder's TOOLS dict ────────────────────────
 GAME_TOOLS = {
-    "dev_server": tool_dev_server,
-    "screenshot": tool_screenshot,
-    "ask_vision": tool_ask_vision,
+    "dev_server":     tool_dev_server,
+    "screenshot":     tool_screenshot,
+    "ask_vision":     tool_ask_vision,
+    "reset_project":  tool_reset_project,
 }
 local_coder.TOOLS.update(GAME_TOOLS)
 
@@ -112,7 +131,8 @@ local_coder.TOOL_SCHEMA = local_coder.TOOL_SCHEMA.replace(
     "- read_pdf(path, pages?)                    — extract text from a PDF rulebook\n"
     "- dev_server(action, path?, port?)          — start or stop a React dev server\n"
     "- screenshot(url?, output_path?, selector?) — screenshot a running web app; returns path\n"
-    "- ask_vision(image_path, question)          — analyze screenshot with Ollama vision model",
+    "- ask_vision(image_path, question)          — analyze screenshot with Ollama vision model\n"
+    "- reset_project(target_dir, template_dir)  — reset a project to a clean scaffold (wipes src/, copies package.json/public from template)",
 )
 
 # Add game-specific rules
