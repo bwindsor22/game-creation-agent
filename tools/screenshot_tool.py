@@ -10,6 +10,9 @@ def take_screenshot(
     url: str,
     selector: str | None = None,
     output_path: str | None = None,
+    viewport_width: int = 1280,
+    viewport_height: int = 800,
+    is_mobile: bool = False,
 ) -> str:
     """Take a screenshot of a URL using headless Chromium.
 
@@ -29,7 +32,12 @@ def take_screenshot(
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        context = browser.new_context(
+            viewport={"width": viewport_width, "height": viewport_height},
+            is_mobile=is_mobile,
+            has_touch=is_mobile,
+        )
+        page = context.new_page()
         page.goto(url, wait_until="networkidle")
 
         if selector:

@@ -7,12 +7,13 @@ then writes a minimal src/index.js and src/App.js stub. This is the
 """
 import os
 import shutil
+from typing import Optional
 
 
 def reset_project(
     target_dir: str,
     template_dir: str,
-    stub_app_content: str | None = None,
+    stub_app_content: Optional[str] = None,
 ) -> str:
     """
     Reset target_dir to a clean React scaffold based on template_dir.
