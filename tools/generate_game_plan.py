@@ -75,7 +75,7 @@ def generate_game_plan(game_name: str, rules_text: str, output_path: str) -> str
     print(f"Generating game plan for '{game_name}'...")
 
     response = client.messages.create(
-        model="claude-opus-4-5",
+        model="claude-sonnet-4-6",
         max_tokens=6000,
         messages=[{"role": "user", "content": prompt}],
     )
