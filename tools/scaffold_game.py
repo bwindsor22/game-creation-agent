@@ -133,6 +133,9 @@ GITIGNORE = """node_modules/
 build/
 .env
 .DS_Store
+
+# All resources are local-only (PDFs, images, game name, research)
+resources/
 """
 
 
