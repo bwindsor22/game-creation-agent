@@ -47,13 +47,11 @@ if __name__ == "__main__":
     procs = []
     for game in games:
         output_path = os.path.join(game["dir"], "resources", "research.md")
-        # Read name at runtime — never interpolated into this committed file
-        game_name = open(game["name_file"]).read().strip()
-
         cmd = [
             "/usr/bin/python3",
             os.path.join(TOOLS_DIR, "game_research.py"),
-            game_name,
+            # Name read at runtime from name.txt — never stored in this committed file
+            open(game["name_file"]).read().strip(),
             output_path,
         ]
         if game["pdf"]:
