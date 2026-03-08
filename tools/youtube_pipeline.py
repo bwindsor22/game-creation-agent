@@ -44,9 +44,14 @@ FRAME_INTERVAL_SECONDS = 30  # one frame per N seconds of video
 def _ytdlp() -> str:
     """Return the yt-dlp binary path."""
     candidates = [
-        os.path.expanduser("~/Library/Python/3.9/bin/yt-dlp"),
+        # pyenv 3.12 has the latest yt-dlp (2026.3.3+)
+        os.path.expanduser("~/.pyenv/versions/3.12.2/bin/yt-dlp"),
+        os.path.expanduser("~/.pyenv/shims/yt-dlp"),
+        os.path.expanduser("~/Library/Python/3.12/bin/yt-dlp"),
+        os.path.expanduser("~/Library/Python/3.11/bin/yt-dlp"),
         "/opt/homebrew/bin/yt-dlp",
         "/usr/local/bin/yt-dlp",
+        os.path.expanduser("~/Library/Python/3.9/bin/yt-dlp"),
         "yt-dlp",
     ]
     for c in candidates:
@@ -82,26 +87,122 @@ def download_video(url: str, out_dir: str) -> str:
     output_template = os.path.join(out_dir, "%(id)s.%(ext)s")
     ytdlp = _ytdlp()
 
-    # Base args — try with Safari cookies first (avoids YouTube 403 bot detection on macOS)
-    base = [
-        ytdlp,
-        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        "--merge-output-format", "mp4",
-        "-o", output_template,
+    common = ["-o", output_template]
+
+    # Strategies in order of reliability (updated 2026-03 — android client is most reliable)
+    strategies = [
+        # 1. Android client — bypasses SABR streaming, most reliable
+        [ytdlp, "--extractor-args", "youtube:player_client=android",
+         "--sleep-interval", "2", "-f", "bv*+ba/b"] + common + [url],
+        # 2. Android + tv client combo
+        [ytdlp, "--extractor-args", "youtube:player_client=android,tv",
+         "--sleep-interval", "2", "-f", "bv*+ba/b"] + common + [url],
+        # 3. Android with Chrome cookies
+        [ytdlp, "--cookies-from-browser", "chrome",
+         "--extractor-args", "youtube:player_client=android",
+         "-f", "bv*+ba/b"] + common + [url],
+        # 4. Android with Safari cookies
+        [ytdlp, "--cookies-from-browser", "safari",
+         "--extractor-args", "youtube:player_client=android",
+         "-f", "bv*+ba/b"] + common + [url],
+        # 5. iOS client
+        [ytdlp, "--extractor-args", "youtube:player_client=ios",
+         "-f", "bv*+ba/b"] + common + [url],
+        # 6. Generic fallback with user-agent
+        [ytdlp, "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+         "--merge-output-format", "mp4"] + common + [url],
+        # 7. Bare fallback
+        [ytdlp, "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+         "--merge-output-format", "mp4"] + common + [url],
     ]
 
-    for extra in [["--cookies-from-browser", "safari"], ["--cookies-from-browser", "chrome"], []]:
-        cmd = base + extra + [url]
+    for cmd in strategies:
         result = subprocess.run(cmd, capture_output=False)
         if result.returncode == 0:
-            break
-    else:
-        raise RuntimeError(f"yt-dlp failed to download {url} (tried with and without browser cookies)")
+            files = list(Path(out_dir).glob("*.mp4"))
+            if files:
+                return str(sorted(files)[0])
 
-    files = list(Path(out_dir).glob("*.mp4"))
-    if not files:
-        raise RuntimeError(f"No MP4 found after downloading {url}")
-    return str(sorted(files)[0])
+    raise RuntimeError(f"yt-dlp failed to download {url} (tried all strategies)")
+
+
+# ---------------------------------------------------------------------------
+# Step 1b: Playwright fallback — scrape frames from YouTube page
+# ---------------------------------------------------------------------------
+
+def scrape_youtube_frames(url: str, frame_dir: str, num_frames: int = 8) -> list[tuple[float, str]]:
+    """
+    Playwright fallback: navigate to the YouTube page, seek to N timestamps,
+    and screenshot each frame. Works when video download is blocked.
+    Returns list of (timestamp_s, image_path).
+    """
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore
+    except ImportError:
+        print("  playwright not installed — run: pip install playwright && playwright install chromium")
+        return []
+
+    os.makedirs(frame_dir, exist_ok=True)
+    frames: list[tuple[float, str]] = []
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+
+        # Load video page — auto-play is typically blocked; we seek manually
+        page.goto(url, wait_until="domcontentloaded")
+        page.wait_for_timeout(3000)
+
+        # Dismiss consent / cookie popups if present
+        for selector in ['button[aria-label*="Accept"]', 'button[aria-label*="Reject"]',
+                         '#yDmH0d .eom-button-row button', 'tp-yt-paper-button[aria-label*="agree"]']:
+            try:
+                page.click(selector, timeout=1500)
+                page.wait_for_timeout(500)
+            except Exception:
+                pass
+
+        # Click play to start the video, then pause it
+        try:
+            page.click('button.ytp-play-button', timeout=3000)
+            page.wait_for_timeout(1500)
+            page.click('button.ytp-play-button', timeout=3000)  # pause
+        except Exception:
+            pass
+
+        # Get video duration from the player
+        duration_s: float = 0.0
+        try:
+            dur_text = page.locator('.ytp-time-duration').inner_text(timeout=3000)
+            parts = list(map(int, dur_text.split(':')))
+            duration_s = parts[-1] + parts[-2] * 60 + (parts[-3] * 3600 if len(parts) > 2 else 0)
+        except Exception:
+            duration_s = 600.0  # assume 10 min if unknown
+
+        # Seek to evenly spaced timestamps and screenshot
+        step = duration_s / (num_frames + 1)
+        for i in range(num_frames):
+            ts = step * (i + 1)
+            try:
+                # Use YouTube's seekTo JS API
+                page.evaluate(f"""
+                    const v = document.querySelector('video');
+                    if (v) {{ v.currentTime = {ts}; }}
+                """)
+                page.wait_for_timeout(1200)  # let frame render
+                img_path = os.path.join(frame_dir, f"frame_{i+1:04d}.jpg")
+                # Screenshot only the video element area
+                video_el = page.locator('video').first
+                video_el.screenshot(path=img_path)
+                frames.append((ts, img_path))
+                print(f"    Playwright frame {i+1}/{num_frames} @ {ts:.0f}s → {img_path}")
+            except Exception as e:
+                print(f"    Playwright frame {i+1} failed: {e}")
+
+        browser.close()
+
+    return frames
 
 
 # ---------------------------------------------------------------------------
@@ -278,6 +379,15 @@ def process_video(url: str, video_out_dir: str, game_name: str, client: anthropi
     except Exception as e:
         print(f"  Video download/transcription skipped ({e})")
         segments_whisper = None
+
+    # Step 1b: Playwright fallback — grab frames directly from YouTube page
+    if not frames:
+        print("  Trying Playwright scrape for frames...")
+        frames = scrape_youtube_frames(url, frame_dir, num_frames=8)
+        if frames:
+            print(f"  {len(frames)} frames captured via Playwright")
+        else:
+            print("  Playwright frame capture also failed — proceeding without frames")
 
     # Step 2: Get transcript — use Whisper if available, else youtube-transcript-api
     if segments_whisper:
