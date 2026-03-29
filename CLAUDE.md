@@ -230,6 +230,11 @@ All user-facing text (tutorials, blog articles, puzzle feedback, UI labels) must
 | **Writing or editing blog articles** | |
 | | `skills/blog-articles/` — article conventions, components, game ID mapping |
 | | `skills/writing-style/` — Brad Windsor voice guide, no em dashes rule |
+| **Fixing bugs from user reports** | |
+| | `skills/bug-fixing/` — three-stage workflow: reproduce, fix, update skill + Supabase |
+| | `skills/game-visual-analysis/` — visual/layout/rule bug reproduction |
+| | `skills/tutorial-verification/` — tutorial bug reproduction |
+| | `skills/ai-verification/` — AI bug reproduction |
 | **Pre-deploy quality assurance** | |
 | | `skills/game-visual-analysis/` — 14-category visual bug audit |
 | | `skills/tactics-verification/` — tutorial puzzle engine verification |
