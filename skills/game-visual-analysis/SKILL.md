@@ -219,6 +219,8 @@ Historical visual bugs to check for on every QA pass:
 - **Board too zoomed in on mobile (3D games especially)**: 3D games using react-three-fiber may render too close on mobile, clipping the board edges. Adjust camera position or FOV based on viewport width.
 - **Stacked-piece connectivity check ignores stack depth**: When a piece sits on top of a stack (e.g., beetle in Hive), the one-hive/connectivity check must only virtually remove the top piece, not the entire cell. Otherwise, pieces on stacks become permanently immovable if the cell beneath is a connectivity bottleneck. Fix: skip the connectivity check for pieces on stacks with height > 1.
 - **Unicode chess piece size asymmetry**: Filled black Unicode chess glyphs (U+265x) render visually larger than outlined white glyphs (U+2659-265F) at the same font size. Apply a ~10% font-size reduction to black pieces across all rendering contexts (board, tutorial, captured list, replay viewer, promotion picker).
+- **TouchBackend swallows tap events on mobile**: When react-dnd-touch-backend is active, it intercepts touch events on drag sources even when `canDrag` returns false. This prevents onClick handlers from firing. Fix: disable drag ref on mobile for pieces that use tap-to-select interaction.
+- **Action buttons not visually prominent enough**: Critical game actions (End Turn, Submit Move) rendered with subtle styling are easy to miss. Use solid background color with contrast and consider a pulse/glow animation to draw attention.
 
 ---
 

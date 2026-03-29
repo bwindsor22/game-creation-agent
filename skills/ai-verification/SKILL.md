@@ -142,6 +142,7 @@ Historical failures to specifically test for:
 - **AI makes illegal moves (move validation bug in applyMove)**: The AI's simulated moves pass through applyMove, but if applyMove doesn't validate properly, the AI may "play" moves that are not legal. Check console for errors during AI turns.
 - **AI hangs or times out on large boards (search depth too deep)**: On 19x19 boards (Pente, Go), depth 4+ can take minutes. If the AI doesn't respond within 5 seconds, the depth is too high for the board size. Reduce depth or add move pruning.
 - **AI doesn't block obvious winning threats (heuristic doesn't weight opponent threats)**: The AI builds its own position but ignores the opponent's near-win. This is a heuristic bug, not a search bug. The evaluation function must give high negative weight to opponent threats.
+- **Easy AI uses minimax at depth 2+, making it unbeatable by beginners**: Easy difficulty should use random or near-random move selection. Depth-2 minimax plays strong positional games that frustrate new players. Fix: random selection with optional bias (e.g., 70% avoid captures in Mancala games).
 
 ---
 

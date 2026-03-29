@@ -26,6 +26,8 @@ Historical bugs to check for on every verification pass:
 - **Puzzle correctMoves includes an occupied cell**: A correctMove pointing to a cell that already has a piece in the board state. Always validate correctMoves against the board before shipping.
 - **Tutorial board uses game-specific rendering features not supported by the tutorial renderer**: The tutorial renderer may not support all visual features of the main game (e.g., stacked pieces, ghost indicators, special states). Verify the tutorial renderer handles every board state format used in the JSON.
 - **Dark pieces invisible on dark tutorial background**: Game pieces with dark fills (black stones, dark discs) may be invisible when the tutorial board uses a dark background color. Ensure piece strokes have sufficient contrast against the tutorial background.
+- **Tutorial board missing game-specific visual elements**: The tutorial board renderer may not support all element types from the main game (walls in Quoridor, stacks in Tak, links in TwixT). If a tutorial step discusses a mechanic, the board must render that mechanic visually, not just describe it in text.
+- **Tutorial text uses coordinate system not shown on the board**: Text references "row 5" or "column C" but the tutorial board has no labels. Either add labels to the tutorial renderer or rewrite text to use spatial descriptions.
 
 ---
 
