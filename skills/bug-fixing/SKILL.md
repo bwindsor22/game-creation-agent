@@ -25,13 +25,9 @@ Then use `$SUPABASE_URL` and `$SUPABASE_ANON_KEY` in curl commands. Never hard-c
 
 ---
 
-## Step 0: Triage — Bug or Feature Request?
+## Step 0: Understand the Report
 
-Before starting any work, classify the report:
-
-- **Bug**: Something that exists but is broken, incorrect, or visually wrong. Follow the three-stage bug workflow below.
-- **Feature request**: Something new that doesn't exist yet. Follow the Feature Request Workflow at the end of this document.
-- **Ambiguous**: If the report describes an existing feature that works but could be better (e.g., "the end-turn button should be more obvious"), it's a feature request. If it describes something that doesn't work at all (e.g., "beetle can't dismount"), it's a bug.
+Read the report and identify the domain. Everything is a bug or an improvement to fix. "Works but could be better" still follows the same three-stage workflow. The only difference is scope: a rule-breaking logic error is a quick fix, while "the end-turn button should be more obvious" may involve design judgment. Both go through reproduce, fix, update.
 
 ---
 
@@ -171,7 +167,7 @@ curl -s -X PATCH \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
   -H "Content-Type: application/json" \
   -H "Prefer: return=minimal" \
-  -d '{"resolved_at": "ISO_DATE", "resolved_notes": "Brief description of the fix"}' \
+  -d '{"resolved_at": "ISO_DATE", "resolution_notes": "Brief description of the fix", "status": "resolved"}' \
   "$SUPABASE_URL/rest/v1/bug_reports?id=eq.BUG_ID"
 ```
 
@@ -220,7 +216,7 @@ curl -s -X PATCH \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
   -H "Content-Type: application/json" \
   -H "Prefer: return=minimal" \
-  -d '{"resolved_at": "ISO_DATE", "resolved_notes": "Description of fix"}' \
+  -d '{"resolved_at": "ISO_DATE", "resolution_notes": "Description of fix", "status": "resolved"}' \
   "$SUPABASE_URL/rest/v1/bug_reports?id=eq.BUG_ID"
 ```
 
@@ -235,54 +231,11 @@ curl -s \
 
 ---
 
-## Feature Request Workflow
+## Larger Improvements
 
-Feature requests are not bugs. They describe something new, not something broken. They follow a different process.
+Some reports describe improvements that require more design judgment (e.g., "end-turn button should be more obvious," "add push-off animation"). These still follow the three stages, with one addition:
 
-### Step 1: Read CLAUDE.md and identify context
-
-Start by reading the game-creation-agent `CLAUDE.md` to understand:
-- The portal architecture (file paths, game ID mapping, deployment)
-- Which skills exist and what they cover
-- The task/skills reference matrix to find relevant prior work
-
-Then read the specific game's `App.js` and any related components to understand the current implementation.
-
-### Step 2: Assess scope and feasibility
-
-Determine if the feature request is:
-- **Quick win** (< 30 min): UI tweak, text change, styling adjustment. Implement directly.
-- **Medium** (30 min - 2 hours): New component, game logic change, AI tuning. Plan first, then implement.
-- **Large** (> 2 hours): New system, cross-game feature, infrastructure change. Write a plan, present to the user, get approval before starting.
-
-For medium and large features, check if an existing skill covers the domain (e.g., tutorial-creation for new tutorial content, ai-creation for AI improvements). Use that skill's approach.
-
-### Step 3: Implement
-
-Follow the relevant creation skill if one applies. Otherwise:
-1. Make the change in the portal
-2. Build and verify: `python3 /Users/brad/projects/code/game-creation-agent/tools/npm_build.py /Users/brad/projects/code/abstracts/portal`
-3. Take screenshots if the change is visual
-4. Test on mobile viewport (390x844) if the change affects layout
-
-### Step 4: Update Supabase
-
-Mark the feature request as resolved with a description of what was implemented:
-
-```bash
-source /Users/brad/projects/code/game-creation-agent/.env
-curl -s -X PATCH \
-  -H "apikey: $SUPABASE_ANON_KEY" \
-  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-  -H "Content-Type: application/json" \
-  -H "Prefer: return=minimal" \
-  -d '{"resolved_at": "ISO_DATE", "resolved_notes": "Feature implemented: brief description"}' \
-  "$SUPABASE_URL/rest/v1/bug_reports?id=eq.BUG_ID"
-```
-
-### Step 5: Update skills if the feature introduces a new pattern
-
-If the feature establishes a pattern that future games should follow (e.g., a new tutorial interaction type, a new AI difficulty model), update the relevant creation skill's documentation so future implementations follow the same approach.
+**Before Stage 2**, read the game-creation-agent `CLAUDE.md` to check if an existing skill covers the domain (tutorial-creation for tutorial content, ai-creation for AI improvements, etc.). Use that skill's approach. For larger changes, check with the user before implementing.
 
 ---
 
@@ -294,6 +247,7 @@ If the feature establishes a pattern that future games should follow (e.g., a ne
 - **Never forget to build and verify after fixing.** A broken build is worse than the original bug.
 - **Never hard-code Supabase credentials in git-tracked files.** Always source from `.env`.
 - **Never fix multiple bugs in a single commit without building between each.** One bad fix can mask another, and reverting becomes harder.
+- **Never dismiss a report as "just a feature request."** If a user reported it, it's worth fixing.
 
 ---
 
@@ -307,13 +261,12 @@ All user-facing text written or modified during bug fixes must follow the writin
 
 This skill orchestrates the other verification skills. It does not replace them.
 
-| Skill | Role in Bug-Fixing | Role in Feature Requests |
-|---|---|---|
-| `tutorial-verification/` | Stage 1 reproduction for tutorial bugs. Stage 3 Issue Log updates. | Verify new tutorial content. |
-| `tactics-verification/` | Stage 1 reproduction for puzzle logic bugs. verify-tactics.mjs. | Verify new puzzle content. |
-| `ai-verification/` | Stage 1 reproduction for AI bugs. Naive strategy tests. | Verify AI changes don't break difficulty. |
-| `game-visual-analysis/` | Stage 1 reproduction for visual/layout/rule bugs. Screenshot pipeline. | Verify new UI features at all viewports. |
-| `writing-style/` | Stage 2 text fixes. Grep checks for prohibited punctuation. | Ensure new text follows voice guide. |
-| `tutorial-creation/` | Reference when tutorial structure needs changes. | Guide for building new tutorial content. |
-| `ai-creation/` | Reference when AI logic needs changes. | Guide for building new AI features. |
-| `generic-game-plan.md` | N/A | Reference for large features that add new game capabilities. |
+| Skill | Role in Bug-Fixing |
+|---|---|
+| `tutorial-verification/` | Stage 1 reproduction for tutorial bugs. Stage 3 Issue Log updates. |
+| `tactics-verification/` | Stage 1 reproduction for puzzle logic bugs. verify-tactics.mjs. |
+| `ai-verification/` | Stage 1 reproduction for AI bugs. Naive strategy tests. |
+| `game-visual-analysis/` | Stage 1 reproduction for visual/layout/rule bugs. Screenshot pipeline. |
+| `writing-style/` | Stage 2 text fixes. Grep checks for prohibited punctuation. |
+| `tutorial-creation/` | Reference when tutorial structure or content needs changes. |
+| `ai-creation/` | Reference when AI logic or difficulty needs changes. |

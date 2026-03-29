@@ -20,6 +20,9 @@ Historical bugs to check for on every verification pass:
 - **Board state doesn't match what the text describes**: The puzzle instruction says "Black has a tria on row 8" but the board JSON places stones on row 9. Caused by coordinate translation errors from book notation.
 - **Mobile layout: text overflow, FAB overlap with tutorial nav buttons**: Long explanation text overflows its container on narrow viewports. The floating action button covers the Next/Previous step buttons at the bottom of the screen.
 - **Info steps that are too long (>4 sentences) or use undefined jargon**: Info steps should be 2-4 sentences max. Each term must be defined before or during its first use. Jargon from the source book that wasn't introduced in an earlier step is a failure.
+- **Tutorial text references internal coordinates not visible on the board**: Text says "Row 0" or "column 6" but the board UI has no row/column labels. Tutorial text must use player-visible descriptions (spatial terms like "top row," "corner," "left side") rather than array indices or internal coordinates.
+- **Explain steps worded as imperatives, confused with puzzle steps**: Non-interactive explain/info steps that say "Place a disc..." or "Move your piece to..." read as calls to action, making players try to click. Explain steps must use descriptive language ("Black goes first by placing...") not imperative language ("Place a disc to...").
+- **Tutorial board state shows illegal moves**: A tutorial step illustrating "after this move" must show a legal game state. If a piece is shown as placed, it must follow the game's placement rules (e.g., Othello requires sandwiching). Flipped/captured pieces must be updated in the board JSON.
 
 ---
 

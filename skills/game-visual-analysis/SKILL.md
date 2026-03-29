@@ -217,6 +217,8 @@ Historical visual bugs to check for on every QA pass:
 - **Start screen scrolled to wrong position after navigation**: After navigating back to the start screen from a game, the page may be scrolled to the bottom instead of the top. Add `window.scrollTo(0, 0)` on screen transitions.
 - **Win overlay Elo display shows NaN or wrong values**: The Elo calculation uses values that may be undefined on first game or after a draw. Check that the overlay handles missing/null Elo gracefully.
 - **Board too zoomed in on mobile (3D games especially)**: 3D games using react-three-fiber may render too close on mobile, clipping the board edges. Adjust camera position or FOV based on viewport width.
+- **Stacked-piece connectivity check ignores stack depth**: When a piece sits on top of a stack (e.g., beetle in Hive), the one-hive/connectivity check must only virtually remove the top piece, not the entire cell. Otherwise, pieces on stacks become permanently immovable if the cell beneath is a connectivity bottleneck. Fix: skip the connectivity check for pieces on stacks with height > 1.
+- **Unicode chess piece size asymmetry**: Filled black Unicode chess glyphs (U+265x) render visually larger than outlined white glyphs (U+2659-265F) at the same font size. Apply a ~10% font-size reduction to black pieces across all rendering contexts (board, tutorial, captured list, replay viewer, promotion picker).
 
 ---
 
