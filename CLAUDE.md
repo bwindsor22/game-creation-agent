@@ -7,7 +7,7 @@ A Claude Code plugin providing tools to convert board game rulebooks into playab
 ```bash
 pip install -r requirements.txt
 playwright install chromium
-export ANTHROPIC_API_KEY=sk-...
+# No API key needed — pipeline uses local Ollama for vision; guidelines are written by Claude Code directly
 ```
 
 ## Tool reference
@@ -59,6 +59,63 @@ To register manually with Claude Desktop, add to `~/.claude/claude_desktop_confi
 }
 ```
 
+## YouTube pipeline workflow
+
+The YouTube pipeline (`tools/youtube_pipeline.py`) gathers raw materials for game understanding.
+**No Anthropic API key required** — Ollama handles local vision; Claude Code writes the guidelines.
+
+### Step 1: Run the pipeline
+
+```bash
+# Process all videos for a game (pass multiple URLs at once)
+# IMPORTANT: always single-quote URLs — zsh treats '?' as a glob wildcard
+PYENV_VERSION=3.12.2 python3 tools/youtube_pipeline.py \
+  'https://www.youtube.com/watch?v=VIDEO1' \
+  'https://www.youtube.com/watch?v=VIDEO2' \
+  'https://www.youtube.com/watch?v=VIDEO3' \
+  --output /path/to/game/resources/youtube \
+  --game "GameName"
+```
+
+Each video gets its own subdirectory: `<output>/<video_id>/`
+- `transcript.md` — full timestamped transcript (from Whisper or youtube-transcript-api)
+- `frames/` — JPEG frames at 30s intervals (if video downloaded)
+- `frames.json` — frame timestamps + Ollama vision captions
+
+Video URLs to process are in `resources/how-to-play.md`.
+
+### Step 2: Generate guidelines (done by Claude Code, not the pipeline)
+
+After the pipeline runs, read the transcripts and frames directly and write `guidelines.md`:
+1. Read `<video_id>/transcript.md` for the full rules explanation
+2. Use the Read tool on key frames in `frames/` to see the board/pieces visually
+3. Synthesize a `guidelines.md` with sections: Setup, Turn Structure, Valid Moves, Win Condition, Key Rules, Testing Checklist
+4. Write it to `<output>/<video_id>/guidelines.md` and a consolidated `<output>/guidelines.md`
+
+### Step 3: Refine the game implementation
+
+With guidelines in hand:
+1. Read the existing game's `src/Game.js` and `src/App.js`
+2. Compare against guidelines — find discrepancies (wrong costs, missing rules, incorrect win conditions)
+3. Fix each discrepancy, build, screenshot to verify
+
+### Fully local pipeline (no cloud APIs)
+
+| Step | Tool | Notes |
+|---|---|---|
+| Download | yt-dlp (pyenv 3.12) | Android client strategy first |
+| Frames | ffmpeg | Every 30s |
+| Transcription | **mlx-whisper** (Apple Silicon) | `mlx-community/whisper-small-mlx`; auto-downloads weights on first run |
+| Frame captions | Ollama `llava-phi3` | Local vision model |
+| Guidelines | Claude Code directly | Read transcripts + frames, write guidelines.md |
+
+### Troubleshooting
+
+- **yt-dlp 403**: Android client is strategy #1 — already set. Update yt-dlp if still failing.
+- **No video download**: Pipeline falls back to `youtube-transcript-api` (transcript-only, no frames). Still sufficient for guidelines.
+- **Ollama not running**: `ollama serve` then retry, or frames.json will have `caption failed` entries — that's OK.
+- **mlx-whisper slow on first run**: Downloads ~150MB model weights from HuggingFace. Subsequent runs use cache.
+
 ## Adding a new tool
 
 1. Add a function to an existing file in `tools/` (or create a new one)
@@ -97,6 +154,52 @@ Layout bugs like unequal cell sizes or straight edges only show up visually. Aft
 2. Read the screenshot file with the Read tool to view it
 3. Check: cell sizes uniform? board outline matches expected polygon? no unexpected wrapping?
 4. Iterate until correct before moving on.
+
+## Portal architecture reference
+
+The portal at `/Users/brad/projects/code/abstracts/portal` serves all 18 games. Key paths:
+
+| Content | Path |
+|---|---|
+| Tutorial JSONs | `portal/public/tutorials/<game-id>.json` |
+| Game engines | `portal/src/games/<game-id>/Game.js` |
+| Game apps | `portal/src/games/<game-id>/App.js` |
+| Blog articles | `portal/src/views/blog/<Name>Article.jsx` |
+| Blog index | `portal/src/views/Blog.jsx` |
+| Tactics verifier | `portal/scripts/verify-tactics.mjs` |
+| Sitemap | `portal/public/sitemap.xml` |
+
+### Game ID mapping (common confusion)
+
+| Game | URL path | Game ID | Loads from |
+|---|---|---|---|
+| Pente | `/game/pairs` | pairs | `games/stones/App` |
+| Go | `/game/stones` | stones | `games/go/App` |
+| Chess | `/game/knights` | knights | `games/knights/App` |
+| Othello | `/game/flips` | flips | `games/flips/App` |
+
+**Pente is `pairs`, not `stones`.** This is the most common ID confusion.
+
+### Vercel deployment
+
+Build command in `vercel.json`: `cd portal && npm install --legacy-peer-deps && CI=false GENERATE_SOURCEMAP=false npm run build`
+
+- `CI=false` is required because Vercel sets `CI=true`, which makes Create React App treat warnings as errors (CSS order conflicts, missing source maps).
+- After every push, check Vercel build status. Fix any failures before continuing.
+
+### Tactics verification
+
+After writing or modifying any tutorial puzzle:
+```bash
+cd /Users/brad/projects/code/abstracts/portal
+node scripts/verify-tactics.mjs
+```
+
+The script loads each puzzle board into the game engine, applies correctMoves, checks outcomes, and scans for alternate solutions. Exit 0 = pass, exit 1 = failures.
+
+## Writing style
+
+All user-facing text (tutorials, blog articles, puzzle feedback, UI labels) must follow the style guide at `skills/writing-style/writing-style.md`. The single most important rule: **no em dashes**. Replace with commas, periods, or parentheses.
 
 ## Self-improvement
 
