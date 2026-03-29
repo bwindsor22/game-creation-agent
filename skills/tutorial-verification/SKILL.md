@@ -23,6 +23,9 @@ Historical bugs to check for on every verification pass:
 - **Tutorial text references internal coordinates not visible on the board**: Text says "Row 0" or "column 6" but the board UI has no row/column labels. Tutorial text must use player-visible descriptions (spatial terms like "top row," "corner," "left side") rather than array indices or internal coordinates.
 - **Explain steps worded as imperatives, confused with puzzle steps**: Non-interactive explain/info steps that say "Place a disc..." or "Move your piece to..." read as calls to action, making players try to click. Explain steps must use descriptive language ("Black goes first by placing...") not imperative language ("Place a disc to...").
 - **Tutorial board state shows illegal moves**: A tutorial step illustrating "after this move" must show a legal game state. If a piece is shown as placed, it must follow the game's placement rules (e.g., Othello requires sandwiching). Flipped/captured pieces must be updated in the board JSON.
+- **Puzzle correctMoves includes an occupied cell**: A correctMove pointing to a cell that already has a piece in the board state. Always validate correctMoves against the board before shipping.
+- **Tutorial board uses game-specific rendering features not supported by the tutorial renderer**: The tutorial renderer may not support all visual features of the main game (e.g., stacked pieces, ghost indicators, special states). Verify the tutorial renderer handles every board state format used in the JSON.
+- **Dark pieces invisible on dark tutorial background**: Game pieces with dark fills (black stones, dark discs) may be invisible when the tutorial board uses a dark background color. Ensure piece strokes have sufficient contrast against the tutorial background.
 
 ---
 
