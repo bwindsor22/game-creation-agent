@@ -205,6 +205,21 @@ Store reference images in `project_dir/resources/`. When verifying layout change
 
 ---
 
+## Issue Log (Known Failure Cases)
+
+Historical visual bugs to check for on every QA pass:
+
+- **Board clips off left/right edge on mobile (most common visual bug)**: The game board extends beyond the viewport on narrow screens. Usually caused by fixed-width containers, negative margins, or missing `overflow: hidden`. Check at 375px and 390px widths.
+- **SVG without viewBox doesn't scale on mobile**: SVG elements without a `viewBox` attribute render at their intrinsic size and don't scale down on narrow viewports. Always verify SVG game boards have `viewBox` set.
+- **FAB button overlaps tutorial navigation at bottom**: The floating action button (menu, settings) covers the Next/Previous step buttons in tutorial mode. Check at mobile viewports with tutorial active.
+- **Touch targets under 44px on mobile**: Buttons, cells, and interactive elements smaller than 44x44px are hard to tap on mobile. Common in hex game cells and difficulty chooser buttons.
+- **Difficulty chooser buttons wrap to second line on narrow screens**: When 4-5 difficulty buttons are in a row, they wrap on screens under 390px wide. Use smaller font, abbreviations, or a different layout for mobile.
+- **Start screen scrolled to wrong position after navigation**: After navigating back to the start screen from a game, the page may be scrolled to the bottom instead of the top. Add `window.scrollTo(0, 0)` on screen transitions.
+- **Win overlay Elo display shows NaN or wrong values**: The Elo calculation uses values that may be undefined on first game or after a draw. Check that the overlay handles missing/null Elo gracefully.
+- **Board too zoomed in on mobile (3D games especially)**: 3D games using react-three-fiber may render too close on mobile, clipping the board edges. Adjust camera position or FOV based on viewport width.
+
+---
+
 ## Feature Request Filtering
 
 Before reporting any finding, check `feature-request-detection.md`. A finding is a **bug** only if:

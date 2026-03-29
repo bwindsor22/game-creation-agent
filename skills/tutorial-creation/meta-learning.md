@@ -1,6 +1,6 @@
 # Strategy Tutorial Pipeline — Meta-Learning Log
 
-This file records learnings from each run of the strategy-tutorial skill. Future agents should read this before starting a new game's strategy tutorial.
+This file records learnings from each run of the tutorial-creation skill. Future agents should read this before starting a new game's strategy tutorial.
 
 ---
 

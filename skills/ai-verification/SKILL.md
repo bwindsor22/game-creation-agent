@@ -131,6 +131,54 @@ To add AI verification for a new game:
 3. Implement the naive strategy functions
 4. Run and verify
 
+## Issue Log (Known Failure Cases)
+
+Historical failures to specifically test for:
+
+- **Straight line strategy beats medium AI in connection games (Hex, TwixT)**: The most basic naive strategy (play cells in a straight line toward the goal edge) should never win against medium. If it does, the AI is not detecting or blocking linear threats.
+- **Building five in a row without defending beats medium Pente AI**: Playing stones in a line without any defensive moves should be trivially beaten by medium. Failure indicates the heuristic does not weight opponent alignment threats.
+- **Greedy tower building beats medium Santorini AI**: Always building adjacent to your own worker and moving to the highest cell should not win. The AI must block level-3 climbs.
+- **First-valid-move strategy beats medium Chess AI**: Iterating pieces and picking the first legal move is the lowest-effort strategy. Medium should win comfortably.
+- **AI makes illegal moves (move validation bug in applyMove)**: The AI's simulated moves pass through applyMove, but if applyMove doesn't validate properly, the AI may "play" moves that are not legal. Check console for errors during AI turns.
+- **AI hangs or times out on large boards (search depth too deep)**: On 19x19 boards (Pente, Go), depth 4+ can take minutes. If the AI doesn't respond within 5 seconds, the depth is too high for the board size. Reduce depth or add move pruning.
+- **AI doesn't block obvious winning threats (heuristic doesn't weight opponent threats)**: The AI builds its own position but ignores the opponent's near-win. This is a heuristic bug, not a search bug. The evaluation function must give high negative weight to opponent threats.
+
+---
+
+## Programmatic Tests
+
+### Running the verification script
+
+```bash
+cd /path/to/abstracts/portal
+node scripts/verify-ai.mjs
+```
+
+The script runs naive strategies against each difficulty level:
+
+- **5 games per naive strategy per difficulty** (medium and hard)
+- **Pass criteria**: Naive strategy wins 0/5 against medium, 0/5 against hard
+- **Fail criteria**: Any naive strategy win against medium
+
+Results are printed as a table. Exit code 0 = all pass, exit code 1 = any failure.
+
+### What the script tests
+
+For each game in the registry:
+1. Imports the game engine (`Game.js`) and AI (`AI/ai.js`)
+2. Runs each registered naive strategy as player 1 against the AI as player 2
+3. Records win/loss/draw for each game
+4. Aggregates results and checks against pass/fail criteria
+
+### Adding a new game
+
+1. Define 2-3 naive strategies appropriate for the game type (see Naive Strategy Definitions above)
+2. Add an entry to the games array in `scripts/verify-ai.mjs`
+3. Implement the naive strategy functions
+4. Run and verify all existing games still pass
+
+---
+
 ## What This Skill Does NOT Cover
 
 - Whether the AI plays "well" in a subjective sense

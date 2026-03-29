@@ -84,6 +84,20 @@ For each correctMove, the script:
 - Red: row 0 to row 10. Blue: col 0 to col 10
 - Hex neighbors: `[-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0]`
 
+## Issue Log (Known Failure Cases)
+
+Historical bugs encountered during tactics verification. Check for these on every run:
+
+- **Puzzle has unlisted alternate solution (most common failure)**: An empty cell not in `correctMoves` also produces the expected outcome. The alternate-solution scanner catches these for Pente and Hex. For other games, manually scan cells adjacent to correctMoves.
+- **Pente capture puzzle missing sandwich stone**: The capture mechanic requires `YOUR-OPP-OPP-YOUR` in a line. A common error is having the opponent pair but no friendly stone at the far end to complete the sandwich.
+- **Pente fork puzzle with stones on wrong row (misaligned three-in-a-row)**: Double-tria puzzles need two lines of 2 stones each intersecting at the correctMove cell. Stones placed on adjacent rows don't form a line through the target.
+- **Hex puzzle gap at wrong coordinate (path doesn't connect via BFS)**: A "win in one" hex puzzle must have a contiguous path with exactly one gap. One wrong coordinate in the hex neighbor grid breaks the chain. Verify with the 6-direction neighbor formula: `[[-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0]]`.
+- **Capture-win puzzle with wrong prior capture count**: "Fifth capture" puzzles must have exactly 4 prior captures set in the game state. If the count is wrong, the capture doesn't trigger a win.
+- **"Forced Win in Three" puzzle where the forced gap isn't actually forced (has two bridge cells)**: A gap that looks forced actually has two valid bridge cells, making it a two-bridge. Both cells complete the connection, so the puzzle has two solutions at the first step. Fix: add a blocker stone at one bridge cell.
+- **Em dashes in feedback/hint text**: The writing style guide prohibits em dashes. They appear in puzzle explanation text, hint text, and feedback strings. Grep for them after every edit.
+
+---
+
 ## Common Failure Patterns
 
 ### Pattern 1: Missing sandwich stone (Pente captures)
@@ -157,7 +171,7 @@ node scripts/verify-tactics.mjs
 This skill complements:
 - **`tactics-creation/`**: Design patterns for constructing puzzles. Read it before writing new puzzles.
 - **`pre-deploy-qa`** (in `game-visual-analysis/`): Catches visual bugs. This skill catches logic bugs. Run both before pushing.
-- **`strategy-tutorial/`**: Phase 5 (Verification) calls this script.
+- **`tutorial-creation/`**: Phase 5 (Verification) calls this script.
 
 ```bash
 node scripts/verify-tactics.mjs    # Logic verification

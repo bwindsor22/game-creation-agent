@@ -210,7 +210,8 @@ All user-facing text (tutorials, blog articles, puzzle feedback, UI labels) must
 | | `skills/game-visual-analysis/` — pre-deploy QA pipeline (14 bug categories, includes visual testing) |
 | | `skills/writing-style/` — voice guide for all user-facing text |
 | **Creating a strategy tutorial** | |
-| | `skills/strategy-tutorial/` — full pipeline from PDF extraction to interactive JSON |
+| | `skills/tutorial-creation/` — full pipeline from PDF extraction to interactive JSON |
+| | `skills/tutorial-verification/` — verify puzzles, text, mobile layout, learning progression |
 | | `skills/strategy-pipeline/` — concept maps for specific games (Pente, Hex) |
 | | `skills/writing-style/` — tutorial text conventions |
 | | `skills/tactics-verification/` — engine verification of puzzle correctness |
@@ -219,6 +220,7 @@ All user-facing text (tutorials, blog articles, puzzle feedback, UI labels) must
 | | `skills/tactics-verification/` — automated verification against game engines |
 | | `skills/writing-style/` — feedback and hint text conventions |
 | **Creating or tuning game AI** | |
+| | `skills/ai-creation/` — minimax, heuristic design, difficulty scaling, UI integration |
 | | `generic-game-plan.md` (Phase 7) — AI architecture patterns |
 | | `skills/ai-verification/` — naive strategy smoke tests per difficulty level |
 | | `skills/game-visual-analysis/` — screenshot verification of AI behavior (includes visual testing) |

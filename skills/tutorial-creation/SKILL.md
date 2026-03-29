@@ -1,5 +1,5 @@
 ---
-name: strategy-tutorial
+name: tutorial-creation
 description: Pipeline for converting a strategy book (PDF or text) into structured interactive tutorial content for an abstract strategy game. Use this skill when given a strategy book and asked to create tutorial lessons, strategy guides, or interactive puzzles for a game. Also trigger when the user says "strategy guide", "make a tutorial from this book", "convert PDF to tutorial", "strategy section", or "teach strategy" for a game.
 ---
 
@@ -213,7 +213,7 @@ Before shipping the tutorial tier:
 4. **Check for alternate solutions**: For each puzzle, mentally scan empty cells near the correctMove. If another cell also produces a win/capture/fork, either add it to correctMoves or add an opponent stone to block it. The verification script automates this for Pente and Hex.
 5. **Read the tier end-to-end as a learner**: does each lesson assume only what came before it? Is the pacing right?
 6. **Check mobile**: open the tutorial on a 390px-wide viewport and verify no text overflow, no button overlap with FAB.
-7. **Search for em dashes**: grep for \u2014 (—) and -- in all user-visible strings. Replace with commas, periods, or parentheses per the writing style guide.
+7. **Search for em dashes**: grep for — (—) and -- in all user-visible strings. Replace with commas, periods, or parentheses per the writing style guide.
 
 See also: `tactics-creation/SKILL.md` for puzzle design patterns, and `tactics-verification/SKILL.md` for details on the verification script.
 
