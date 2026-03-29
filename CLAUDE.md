@@ -201,6 +201,38 @@ The script loads each puzzle board into the game engine, applies correctMoves, c
 
 All user-facing text (tutorials, blog articles, puzzle feedback, UI labels) must follow the style guide at `skills/writing-style/writing-style.md`. The single most important rule: **no em dashes**. Replace with commas, periods, or parentheses.
 
+## Task and skill reference
+
+| Task | Relevant skills / files |
+|---|---|
+| **Creating a new game** | |
+| | `generic-game-plan.md` — phase-by-phase implementation template |
+| | `skills/game-visual-analysis/` — pre-deploy QA pipeline (14 bug categories, includes visual testing) |
+| | `skills/writing-style/` — voice guide for all user-facing text |
+| **Creating a strategy tutorial** | |
+| | `skills/strategy-tutorial/` — full pipeline from PDF extraction to interactive JSON |
+| | `skills/strategy-pipeline/` — concept maps for specific games (Pente, Hex) |
+| | `skills/writing-style/` — tutorial text conventions |
+| | `skills/tactics-verification/` — engine verification of puzzle correctness |
+| **Creating tactics puzzles** | |
+| | `skills/tactics-creation/` — puzzle design patterns (Hex two-bridges, Pente captures, etc.) |
+| | `skills/tactics-verification/` — automated verification against game engines |
+| | `skills/writing-style/` — feedback and hint text conventions |
+| **Creating or tuning game AI** | |
+| | `generic-game-plan.md` (Phase 7) — AI architecture patterns |
+| | `skills/ai-verification/` — naive strategy smoke tests per difficulty level |
+| | `skills/game-visual-analysis/` — screenshot verification of AI behavior (includes visual testing) |
+| **Verifying game AI** | |
+| | `skills/ai-verification/` — run naive strategies against each difficulty |
+| | Game engine files: `portal/src/games/<id>/Game.js` + `AI/ai.js` |
+| **Writing or editing blog articles** | |
+| | `skills/blog-articles/` — article conventions, components, game ID mapping |
+| | `skills/writing-style/` — Brad Windsor voice guide, no em dashes rule |
+| **Pre-deploy quality assurance** | |
+| | `skills/game-visual-analysis/` — 14-category visual bug audit |
+| | `skills/tactics-verification/` — tutorial puzzle engine verification |
+| | `skills/ai-verification/` — AI difficulty smoke tests |
+
 ## Self-improvement
 
 While implementing games, you will encounter patterns, gotchas, and reusable techniques. Apply the following rule when deciding where improvements belong:
@@ -208,7 +240,7 @@ While implementing games, you will encounter patterns, gotchas, and reusable tec
 **Add to game-creation-agent** when the capability is game-agnostic — useful for any future game:
 - A new tool in `tools/` + registered in `mcp_server.py` (e.g. a tool to diff two screenshots, or to validate HTML accessibility)
 - A new or updated command in `commands/` (e.g. a new workflow step)
-- A new pattern or gotcha in `skills/game-visual-testing/SKILL.md`
+- A new pattern or gotcha in `skills/game-visual-analysis/SKILL.md`
 - An update to `generic-game-plan.md` if a phase needs refinement based on experience
 
 **Add to the target game's repo** when the code is game-specific:
