@@ -184,7 +184,10 @@ class TestGenerateGamePlan(unittest.TestCase):
         mock_client.messages.create.return_value = MagicMock(
             content=[MagicMock(text="Generated plan content")]
         )
-        with patch("anthropic.Anthropic", return_value=mock_client):
+        # Ensure anthropic module is importable even when not installed
+        mock_anthropic = MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+        with patch.dict("sys.modules", {"anthropic": mock_anthropic}):
             with tempfile.TemporaryDirectory() as d:
                 out = os.path.join(d, "plan.md")
                 result = generate_game_plan("TestGame", "Some rules text", out)

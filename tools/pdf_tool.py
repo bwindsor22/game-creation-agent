@@ -26,7 +26,13 @@ def pdf_to_text(path: str, pages: str | None = None) -> str:
 
     Returns:
         Extracted text as a string.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
     """
+    import os
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"PDF file not found: {path}")
     text = _extract_with_pypdf(path, pages)
     if not text or not text.strip():
         text = _extract_with_pdfminer(path, pages)

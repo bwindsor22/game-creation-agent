@@ -1,6 +1,5 @@
 """
-youtube_pipeline.py — Download YouTube videos, extract frames + transcripts,
-caption frames with Claude vision, and generate structured game guidelines.
+youtube_pipeline.py — Download YouTube videos, extract frames + transcripts.
 
 Usage:
     python3 tools/youtube_pipeline.py URL --output /path/to/output/dir
@@ -10,29 +9,24 @@ For each URL, a subdirectory named after the video ID is created under --output:
     <output>/<video_id>/
         frames/           — JPEG frames (one per 30 s)
         transcript.md     — full timestamped transcript
-        captions.json     — per-frame captions referencing frame filenames
-        guidelines.md     — structured game guidelines for QA testing
+        frames.json       — frame timestamps + file paths (no API captions)
+
+After running, open the output directory in Claude Code. Claude reads
+transcript.md and the frame images directly and writes guidelines.md.
 
 Dependencies (install once):
-    pip install yt-dlp openai-whisper Pillow anthropic
+    pip install yt-dlp openai-whisper Pillow
     brew install ffmpeg   # also required by whisper
 """
 from __future__ import annotations
 
 import argparse
-import base64
 import json
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
-import anthropic
-
-_KEY_FILE = os.path.expanduser("~/projects/.anthropic_api_key")
-if "ANTHROPIC_API_KEY" not in os.environ and os.path.exists(_KEY_FILE):
-    os.environ["ANTHROPIC_API_KEY"] = open(_KEY_FILE).read().strip()
 
 FRAME_INTERVAL_SECONDS = 30  # one frame per N seconds of video
 
@@ -231,15 +225,31 @@ def extract_frames(video_path: str, frame_dir: str, interval: int = FRAME_INTERV
 
 
 # ---------------------------------------------------------------------------
-# Step 3: Transcribe audio with Whisper
+# Step 3: Transcribe audio — mlx-whisper (Apple Silicon) or openai-whisper fallback
 # ---------------------------------------------------------------------------
 
 def transcribe(video_path: str) -> list[dict]:
-    """Run Whisper on the video. Returns list of segments {start, end, text}."""
+    """Transcribe audio. Tries mlx-whisper (fast on Apple Silicon), falls back to openai-whisper."""
+    # Try mlx-whisper first (fastest on Apple Silicon M-series)
+    try:
+        import mlx_whisper  # type: ignore
+        print("  Transcribing with mlx-whisper (small)...")
+        result = mlx_whisper.transcribe(
+            video_path,
+            path_or_hf_repo="mlx-community/whisper-small-mlx",
+            verbose=False,
+        )
+        segs = result.get("segments", [])
+        return [{"start": s["start"], "end": s["end"], "text": s["text"]} for s in segs]
+    except ImportError:
+        pass
+
+    # Fallback: openai-whisper
     try:
         import whisper  # type: ignore
     except ImportError:
-        print("openai-whisper not installed. Run: pip install openai-whisper", file=sys.stderr)
+        print("Neither mlx-whisper nor openai-whisper installed.", file=sys.stderr)
+        print("Install with: pip install mlx-whisper  (Apple Silicon)", file=sys.stderr)
         raise
 
     print("  Loading Whisper model (small)...")
@@ -261,42 +271,60 @@ def full_transcript(segments: list[dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Step 4: Caption each frame with Claude vision
+# Step 4: Caption frames with Ollama vision (local, no API key needed)
 # ---------------------------------------------------------------------------
+
+import base64 as _base64
+
 
 def encode_image(path: str) -> str:
+    """Encode a file to base64 string."""
     with open(path, "rb") as f:
-        return base64.standard_b64encode(f.read()).decode()
+        return _base64.standard_b64encode(f.read()).decode()
 
 
-def caption_frame(client: anthropic.Anthropic, image_b64: str, transcript_text: str) -> str:
-    """Ask Claude to caption a frame given the accompanying transcript window."""
-    content: list = [
-        {
-            "type": "image",
-            "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64},
-        },
-        {
-            "type": "text",
-            "text": (
-                "You are captioning a board game tutorial video frame.\n"
-                "Transcript for the next 30 seconds:\n"
-                f"\"{transcript_text}\"\n\n"
-                "Write one concise sentence (≤25 words) describing what is being "
-                "demonstrated in this frame, combining what you see and what is being said."
-            ),
-        },
-    ]
-    resp = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=128,
-        messages=[{"role": "user", "content": content}],
+# Keep private alias for backward compatibility
+_encode_image = encode_image
+
+
+def caption_frame_ollama(
+    image_path: str,
+    transcript_window_text: str,
+    model: str = "llava-phi3",
+    ollama_url: str = "http://localhost:11434",
+) -> str:
+    """Caption a frame using a local Ollama vision model."""
+    import urllib.request
+    import urllib.error
+
+    prompt = (
+        "You are captioning a board game tutorial video frame.\n"
+        f"Transcript for the next 30 seconds: \"{transcript_window_text}\"\n\n"
+        "Write one concise sentence (≤25 words) describing what is being demonstrated, "
+        "combining what you see and what is being said."
     )
-    return resp.content[0].text.strip()
+    payload = json.dumps({
+        "model": model,
+        "prompt": prompt,
+        "images": [_encode_image(image_path)],
+        "stream": False,
+    }).encode()
+
+    try:
+        req = urllib.request.Request(
+            f"{ollama_url}/api/generate",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read())
+            return data.get("response", "").strip()
+    except Exception as e:
+        return f"(caption failed: {e})"
 
 
 # ---------------------------------------------------------------------------
-# Step 5: Generate game guidelines from transcript + sampled frames
+# Transcript helpers
 # ---------------------------------------------------------------------------
 
 def fetch_transcript_api(video_id: str) -> list[dict]:
@@ -307,61 +335,11 @@ def fetch_transcript_api(video_id: str) -> list[dict]:
     return [{"start": s.start, "end": s.start + s.duration, "text": s.text} for s in snippets]
 
 
-def generate_guidelines(
-    client: anthropic.Anthropic,
-    game_name: str,
-    transcript_text: str,
-    frames: list[tuple[float, str]],
-    output_path: str,
-) -> str:
-    """Synthesize a structured game guidelines markdown document for testing."""
-    content: list = []
-
-    # Include up to 6 frames if available
-    if frames:
-        step = max(1, len(frames) // 6)
-        for ts, img_path in frames[::step][:6]:
-            content.append({
-                "type": "image",
-                "source": {"type": "base64", "media_type": "image/jpeg", "data": encode_image(img_path)},
-            })
-
-    content.append({
-        "type": "text",
-        "text": (
-            f"You are a game implementation expert. "
-            + (f"The images above are frames from a '{game_name}' how-to-play tutorial video. " if frames else "")
-            + f"Below is the full transcript of a '{game_name}' how-to-play video:\n\n"
-            f"{transcript_text[:14000]}\n\n"
-            f"Produce a structured markdown document titled '# {game_name} — Play Guidelines'.\n"
-            "Include these sections:\n"
-            "## Setup — board layout, piece placement, starting conditions\n"
-            "## Turn Structure — exactly what a player does on their turn, in order\n"
-            "## Valid Moves — precise conditions for each move type\n"
-            "## Win Condition — how the game ends and who wins\n"
-            "## Key Rules — any special rules, edge cases, or common mistakes\n"
-            "## Testing Checklist — a bulleted list of game states / scenarios that a "
-            "QA tester should verify in a digital implementation\n\n"
-            "Be precise enough that a programmer can write automated tests from this document."
-        ),
-    })
-
-    resp = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=3000,
-        messages=[{"role": "user", "content": content}],
-    )
-    text = resp.content[0].text.strip()
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(text)
-    return text
-
-
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
 
-def process_video(url: str, video_out_dir: str, game_name: str, client: anthropic.Anthropic) -> None:
+def process_video(url: str, video_out_dir: str, game_name: str) -> None:
     """Full pipeline for one video URL. Saves all output to video_out_dir."""
     print(f"\n=== {url} ===")
     vid_id = video_id_from_url(url)
@@ -395,8 +373,18 @@ def process_video(url: str, video_out_dir: str, game_name: str, client: anthropi
         print(f"  Using Whisper transcript ({len(segments)} segments)")
     else:
         print("  Fetching transcript via youtube-transcript-api...")
-        segments = fetch_transcript_api(vid_id)
-        print(f"  {len(segments)} transcript segments fetched")
+        try:
+            segments = fetch_transcript_api(vid_id)
+            print(f"  {len(segments)} transcript segments fetched")
+        except Exception as e:
+            print(f"  Transcript not available ({e})")
+            # Save frames index without transcript and continue to next video
+            frames_path = os.path.join(video_out_dir, "frames.json")
+            with open(frames_path, "w", encoding="utf-8") as f:
+                json.dump({"url": url, "game": game_name, "has_frames": bool(frames),
+                           "captions": [], "note": "transcript unavailable"}, f, indent=2)
+            print(f"  Frame index saved (no transcript) → {frames_path}")
+            return
 
     # Step 3: Save transcript
     transcript_text = " ".join(s["text"] for s in segments)
@@ -407,39 +395,35 @@ def process_video(url: str, video_out_dir: str, game_name: str, client: anthropi
             f.write(f"**[{s['start']:.1f}s]** {s['text'].strip()}\n\n")
     print(f"  Transcript saved → {transcript_path}")
 
-    # Step 4: Caption frames (only if we have them)
+    # Step 4: Caption frames with Ollama vision (local, no API key needed)
     captions = []
     if frames:
-        print("  Captioning frames with Claude...")
+        print("  Captioning frames with Ollama (llava-phi3)...")
         for i, (ts, img_path) in enumerate(frames):
             print(f"    Frame {i+1}/{len(frames)} @ {ts:.0f}s")
             window = transcript_window(segments, ts)
-            b64 = encode_image(img_path)
-            caption = caption_frame(client, b64, window) if window else "(no transcript)"
+            caption = caption_frame_ollama(img_path, window)
             rel_frame = os.path.relpath(img_path, video_out_dir)
             captions.append({"timestamp_s": ts, "frame_file": rel_frame, "caption": caption})
 
-    captions_path = os.path.join(video_out_dir, "captions.json")
-    with open(captions_path, "w", encoding="utf-8") as f:
+    frames_path = os.path.join(video_out_dir, "frames.json")
+    with open(frames_path, "w", encoding="utf-8") as f:
         json.dump({"url": url, "game": game_name, "has_frames": bool(frames), "captions": captions}, f, indent=2)
-    print(f"  Captions saved → {captions_path}")
-
-    # Step 5: Generate guidelines
-    print("  Generating game guidelines with Claude...")
-    guidelines_path = os.path.join(video_out_dir, "guidelines.md")
-    generate_guidelines(client, game_name, transcript_text, frames, guidelines_path)
-    print(f"  Guidelines saved → {guidelines_path}")
+    print(f"  Frame index saved → {frames_path}")
+    print(f"\n  Done. Open {video_out_dir}/ in Claude Code to generate guidelines.md.")
 
 
 def run_pipeline(urls: list[str], output_dir: str, game_name: str) -> None:
     os.makedirs(output_dir, exist_ok=True)
-    client = anthropic.Anthropic()
 
     for url in urls:
         vid_id = video_id_from_url(url)
         video_out_dir = os.path.join(output_dir, vid_id)
         os.makedirs(video_out_dir, exist_ok=True)
-        process_video(url, video_out_dir, game_name, client)
+        try:
+            process_video(url, video_out_dir, game_name)
+        except Exception as e:
+            print(f"  ERROR processing {url}: {e}")
 
     print("\nDone. Output structure:")
     for url in urls:

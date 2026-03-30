@@ -12,8 +12,6 @@ import argparse
 import os
 import sys
 
-import anthropic
-
 _KEY_FILE = os.path.expanduser("~/projects/.anthropic_api_key")
 if "ANTHROPIC_API_KEY" not in os.environ and os.path.exists(_KEY_FILE):
     os.environ["ANTHROPIC_API_KEY"] = open(_KEY_FILE).read().strip()
@@ -62,6 +60,8 @@ def load_pdf_text(pdf_path: str, max_chars: int = 15000) -> str:
 
 
 def generate_game_plan(game_name: str, rules_text: str, output_path: str) -> str:
+    import anthropic
+
     generic_plan = load_text(GENERIC_PLAN_PATH)
 
     client = anthropic.Anthropic()
