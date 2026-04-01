@@ -257,6 +257,36 @@ All user-facing text written or modified during bug fixes must follow the writin
 
 ---
 
+## Verification Scripts
+
+After fixing any bug, run both verification scripts:
+
+```bash
+cd portal
+node scripts/verify-tactics.mjs   # Puzzle logic (Pente, Hex)
+node scripts/verify-portal.mjs    # Structural checks (names, completion, sizing, em dashes)
+```
+
+### What verify-portal.mjs catches (added 2026-03-31)
+
+| Check | Bug category | Why it wasn't caught before |
+|---|---|---|
+| **Game name consistency** | Start screen shows alias instead of real game name | No automated check existed. Each game had a hardcoded title string unrelated to the `realName` in games.js data. |
+| **Lesson completion guard** | Explain-only lessons auto-marked complete | `isLessonComplete` returned true when all steps were non-puzzles. No test verified initial lesson state. |
+| **Blog piece sizing parity** | Blog chess boards use different font sizing than the game | Blog articles have their own inline renderers. No tool compared blog rendering against game rendering. |
+| **Em dash detection** | Tutorial text contains prohibited em dashes/double hyphens | Writing style guide existed but was not enforced by any automated check. |
+| **Open four in block puzzle** | Block puzzle with both ends open is unsolvable | verify-tactics.mjs had no "block" puzzle type. Blocking puzzles were misclassified as "threat." |
+
+### Bug categories that require visual verification (no automated check)
+
+| Bug | Why no script | Mitigation |
+|---|---|---|
+| **Rotation highlight mismatch (blocks)** | UX coordination between anchor points and user expectation. No programmatic definition of "confusing." | Screenshot review after any placement/highlight logic change. Run `test-blocks-rotation.mjs` for engine-level verification. |
+| **Tutorial board visual mismatch** | Board aesthetics can't be compared programmatically against the game's visual style. | Use the actual game Board component for tutorials when possible, rather than building a separate SVG renderer. (Trees, YINSH already converted.) |
+| **Text readability** | Font size and contrast are context-dependent (board size, background, viewport). | Screenshot at mobile viewport (390px) after any tutorial board CSS change. |
+| **Chess fork where forking piece is capturable** | verify-tactics.mjs checks that the fork attacks 2+ pieces but not whether the forking piece survives. | Manually verify that no opponent piece defends the fork square. Check all adjacent pawns and piece attack lines. |
+| **Tutorial arrows too faint** | Arrow visibility depends on viewport, board contrast, and screen DPI. | Use minimum `strokeWidth: 4` and `opacity: 0.85` for tutorial arrows. Check on mobile viewport after changes. |
+
 ## Integration with Other Skills
 
 This skill orchestrates the other verification skills. It does not replace them.

@@ -95,6 +95,11 @@ Historical bugs encountered during tactics verification. Check for these on ever
 - **Capture-win puzzle with wrong prior capture count**: "Fifth capture" puzzles must have exactly 4 prior captures set in the game state. If the count is wrong, the capture doesn't trigger a win.
 - **"Forced Win in Three" puzzle where the forced gap isn't actually forced (has two bridge cells)**: A gap that looks forced actually has two valid bridge cells, making it a two-bridge. Both cells complete the connection, so the puzzle has two solutions at the first step. Fix: add a blocker stone at one bridge cell.
 - **Em dashes in feedback/hint text**: The writing style guide prohibits em dashes. They appear in puzzle explanation text, hint text, and feedback strings. Grep for them after every edit.
+- **Defensive "Block the Win" puzzles classified as threats**: Blocking puzzles where the player prevents the opponent from winning were misclassified as "threat" or "capture-win" and failed verification. Fixed by adding a "block" classification that triggers when lesson title includes "block" and text includes "block"/"prevent"/"defend". Block puzzles verify: (1) opponent CAN win without the block, and (2) opponent CANNOT win after the block.
+- **Open four with both ends unblocked (unsolvable block puzzle)**: A block-the-win puzzle with an open four (four in a row with both ends empty) is unsolvable because blocking one end leaves the other open. Fix: add a stone at one end so only one blocking move is needed.
+- **Lesson auto-completing when it has no puzzles**: TutorialMode's `isLessonComplete` marked all-explain lessons as done because every step was "not a puzzle." Fix: return false when a lesson has no puzzle steps.
+- **Chess fork puzzle where the forking piece is capturable**: A knight fork puzzle placed the knight on a square defended by an opponent pawn. The fork is technically correct (it attacks two pieces) but tactically wrong (the knight is immediately captured). Fix: remove the defending pawn. Verify-tactics.mjs does not currently check whether the forking piece survives; this requires chess-specific defense validation.
+- **Chess tutorial arrows too faint to see**: Arrow overlays at `strokeWidth: 2.5` and `opacity: 0.7` were nearly invisible on mobile screens. Fix: increase to `strokeWidth: 4`, `opacity: 0.85`, and enlarge the arrowhead marker.
 
 ---
 
@@ -139,6 +144,20 @@ A "win in two" puzzle where the player extends a tria (three in a row) to a tess
 A "win in two" hex puzzle where a two-bridge gap has two valid bridge cells. Both cells complete the connection. If only one is listed in correctMoves, the other shows as ALT-SOLUTION.
 
 **Fix**: Add both bridge cells to correctMoves, or add a Blue stone at one to make it a forced (single-bridge) gap.
+
+### Pattern 7: Open four in block puzzle (unsolvable)
+
+A "Block the Win" puzzle that presents an open four (both ends empty) is inherently unsolvable. Blocking one end leaves the other, and the opponent wins regardless.
+
+**Correct**: Place a friendly stone at one end so the four has exactly one open end to block.
+
+**Wrong**: `white: (9,7), (9,8), (9,9), (9,10)` with both (9,6) and (9,11) empty. Player can't block both.
+
+**Fix**: Add `"9,6": "black"` to the board, leaving only (9,11) as the correct block.
+
+### Pattern 8: Block puzzle misclassified as capture-win
+
+When a "Block the Win" lesson contains text about opponent captures (e.g., "White has 4 captures"), the classifier may match "capture-win" before "block." The fix: check lesson title for "block" BEFORE text-based classification.
 
 ## Extending to New Games
 
