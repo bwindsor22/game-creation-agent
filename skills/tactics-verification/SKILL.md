@@ -100,6 +100,9 @@ Historical bugs encountered during tactics verification. Check for these on ever
 - **Lesson auto-completing when it has no puzzles**: TutorialMode's `isLessonComplete` marked all-explain lessons as done because every step was "not a puzzle." Fix: return false when a lesson has no puzzle steps.
 - **Chess fork puzzle where the forking piece is capturable**: A knight fork puzzle placed the knight on a square defended by an opponent pawn. The fork is technically correct (it attacks two pieces) but tactically wrong (the knight is immediately captured). Fix: remove the defending pawn. Verify-tactics.mjs does not currently check whether the forking piece survives; this requires chess-specific defense validation.
 - **Chess tutorial arrows too faint to see**: Arrow overlays at `strokeWidth: 2.5` and `opacity: 0.7` were nearly invisible on mobile screens. Fix: increase to `strokeWidth: 4`, `opacity: 0.85`, and enlarge the arrowhead marker.
+- **YINSH "block the score" threat not actually achievable**: A block puzzle claimed the opponent threatens five in a row, but no opponent ring was positioned to create the 5th marker. In YINSH, moving a ring leaves a marker at the ring's starting position. So an opponent ring must sit at one end of the row for the threat to be real. Fix: add an opponent ring at the end of the marker row.
+- **Tutorial text references coordinates but board has no labels**: Puzzle text like "move to (-2,1)" is useless when the board shows no coordinate labels. Fix: replace all coordinate references with spatial descriptions ("the highlighted ring," "to the right," "the first empty cell past the markers").
+- **Tutorial board too large for container (SVG without viewBox)**: The Board SVG used a fixed `width` attribute without a `viewBox`, so it couldn't scale down within the tutorial container. Fix: add `viewBox` and use `width: 100%` with `maxWidth`.
 
 ---
 
