@@ -103,6 +103,7 @@ Historical bugs encountered during tactics verification. Check for these on ever
 - **YINSH "block the score" threat not actually achievable**: A block puzzle claimed the opponent threatens five in a row, but no opponent ring was positioned to create the 5th marker. In YINSH, moving a ring leaves a marker at the ring's starting position. So an opponent ring must sit at one end of the row for the threat to be real. Fix: add an opponent ring at the end of the marker row.
 - **Tutorial text references coordinates but board has no labels**: Puzzle text like "move to (-2,1)" is useless when the board shows no coordinate labels. Fix: replace all coordinate references with spatial descriptions ("the highlighted ring," "to the right," "the first empty cell past the markers").
 - **Tutorial board too large for container (SVG without viewBox)**: The Board SVG used a fixed `width` attribute without a `viewBox`, so it couldn't scale down within the tutorial container. Fix: add `viewBox` and use `width: 100%` with `maxWidth`.
+- **Solved tutorial state doesn't show move result (ring stays, markers don't flip)**: When `buildTutorialState` just placed a ring at the destination without running the engine, the original ring remained and jumped markers were not flipped. Fix: use `getValidMoves` to find the source ring, then `applyMove` to compute the real post-move state showing the marker left behind and flipped markers.
 
 ---
 
