@@ -175,20 +175,49 @@ To add verification for a new game:
 
 The game engines in `src/games/*/Game.js` are pure logic with no React dependencies, so they can be adapted for Node.js verification by inlining the core functions.
 
-## Running After Every Puzzle Edit
+## Pre-Push Verification Checklist
 
-Add to your workflow:
+**Run ALL of these before every push.** Every item is mandatory. Do not skip interactive testing.
 
 ```bash
-# After editing any tutorial JSON with tactics puzzles
+cd portal
+
+# 1. Build
+python3 /Users/brad/projects/code/game-creation-agent/tools/npm_build.py /Users/brad/projects/code/abstracts/portal
+
+# 2. Engine verification (puzzle logic)
 node scripts/verify-tactics.mjs
 
-# If failures found, fix the board state and re-run
-# Common fixes:
-# - Add missing sandwich stone for captures
-# - Move stones to correct coordinates for three-in-a-row
-# - Verify hex neighbor adjacency with the 6-direction formula
+# 3. Structural checks (names, coordinates, em dashes, threats)
+node scripts/verify-portal.mjs
+
+# 4. Blocks rotation tests (if blocks code changed)
+node scripts/test-blocks-rotation.mjs
 ```
+
+### 5. Interactive tutorial playthrough (CRITICAL — do not skip)
+
+**Any time a tutorial is modified**, launch the dev server and play through the affected tutorial using the browser tools. This catches bugs that no static script can find: click handlers swallowed by overlays, drag-and-drop not wired up, solved state not rendering correctly, board scaling issues.
+
+```python
+# Use Playwright to simulate a full tutorial playthrough:
+# - Navigate to each step
+# - Solve each puzzle (click cells, drag rings)
+# - Verify feedback appears and Next button enables
+# - Verify solved state shows the move result on the board
+```
+
+**Why this matters:** Multiple bugs shipped because static verification passed but interactive testing was skipped:
+- foreignObject drag overlays intercepting clicks (YINSH 3.4 puzzle unsolvable)
+- onCellDrop wired to no-op (drag-and-drop silently did nothing)
+- Solved state not running through game engine (ring appeared but markers didn't flip)
+- Board SVG without viewBox (didn't scale in tutorial container)
+
+These are all interaction bugs invisible to JSON or engine verification. The only way to catch them is to actually click/drag through the tutorial in a browser.
+
+### 6. Supabase bug resolution
+
+After fixing bugs, PATCH each to `status: resolved` with resolution notes.
 
 ## Integration with Other Skills
 
@@ -197,15 +226,11 @@ This skill complements:
 - **`pre-deploy-qa`** (in `game-visual-analysis/`): Catches visual bugs. This skill catches logic bugs. Run both before pushing.
 - **`tutorial-creation/`**: Phase 5 (Verification) calls this script.
 
-```bash
-node scripts/verify-tactics.mjs    # Logic verification
-# Then run pre-deploy-qa for visual checks
-```
-
 ## File Locations
 
-- Verification script: `portal/scripts/verify-tactics.mjs`
+- Verification scripts: `portal/scripts/verify-tactics.mjs`, `portal/scripts/verify-portal.mjs`
+- Blocks rotation tests: `portal/scripts/test-blocks-rotation.mjs`
 - Pente tutorial JSON: `portal/public/tutorials/stones.json`
 - Hex tutorial JSON: `portal/public/tutorials/hexes.json`
-- Pente game engine: `portal/src/games/stones/Game.js`
-- Hex game engine: `portal/src/games/hexes/Game.js`
+- YINSH tutorial JSON: `portal/public/tutorials/circles.json`
+- Game engines: `portal/src/games/*/Game.js`

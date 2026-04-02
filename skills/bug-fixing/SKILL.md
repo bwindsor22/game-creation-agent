@@ -259,12 +259,22 @@ All user-facing text written or modified during bug fixes must follow the writin
 
 ## Verification Scripts
 
-After fixing any bug, run both verification scripts:
+After fixing any bug, run ALL verification steps before pushing. See the full checklist in `tactics-verification/SKILL.md` under "Pre-Push Verification Checklist."
 
 ```bash
 cd portal
-node scripts/verify-tactics.mjs   # Puzzle logic (Pente, Hex)
-node scripts/verify-portal.mjs    # Structural checks (names, completion, sizing, em dashes)
+# 1. Build
+python3 /Users/brad/projects/code/game-creation-agent/tools/npm_build.py /Users/brad/projects/code/abstracts/portal
+# 2. Engine verification
+node scripts/verify-tactics.mjs
+# 3. Structural checks
+node scripts/verify-portal.mjs
+# 4. Blocks rotation (if changed)
+node scripts/test-blocks-rotation.mjs
+# 5. INTERACTIVE TUTORIAL PLAYTHROUGH — mandatory if any tutorial was modified
+#    Use Playwright to click/drag through every puzzle step in the affected tutorial.
+#    This is the ONLY way to catch overlay click interception, broken drag-and-drop,
+#    missing solved-state rendering, and board scaling bugs.
 ```
 
 ### What verify-portal.mjs catches (added 2026-03-31)
