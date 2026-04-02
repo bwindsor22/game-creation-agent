@@ -104,6 +104,7 @@ Historical bugs encountered during tactics verification. Check for these on ever
 - **Tutorial text references coordinates but board has no labels**: Puzzle text like "move to (-2,1)" is useless when the board shows no coordinate labels. Fix: replace all coordinate references with spatial descriptions ("the highlighted ring," "to the right," "the first empty cell past the markers").
 - **Tutorial board too large for container (SVG without viewBox)**: The Board SVG used a fixed `width` attribute without a `viewBox`, so it couldn't scale down within the tutorial container. Fix: add `viewBox` and use `width: 100%` with `maxWidth`.
 - **Solved tutorial state doesn't show move result (ring stays, markers don't flip)**: When `buildTutorialState` just placed a ring at the destination without running the engine, the original ring remained and jumped markers were not flipped. Fix: use `getValidMoves` to find the source ring, then `applyMove` to compute the real post-move state showing the marker left behind and flipped markers.
+- **foreignObject drag overlay intercepts clicks on board cells**: The react-dnd `foreignObject` div sits on top of ring cells and swallows click events, making tutorial puzzles unsolvable by clicking. Fix: add `onClick` handler to the foreignObject div that forwards the click to `onCellClick`. This applies to any game using foreignObject overlays for drag-and-drop (YINSH, potentially others).
 
 ---
 
